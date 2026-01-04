@@ -10,13 +10,14 @@ parent_dir = os.path.dirname(current_dir) # analysis
 root_dir = os.path.dirname(parent_dir) # root
 sys.path.append(root_dir)
 
-from shared.db_models import get_engine, EA
+from shared.db_models import get_engine, EA, AppConfig
+from analysis.shared.ui_components import apply_theme
+from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(root_dir, ".env"))
 
 st.set_page_config(page_title="EA Manager", layout="wide")
-st.title("⚙️ EA Strategy Manager")
 
 # DB Connection
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -25,6 +26,19 @@ if not DATABASE_URL:
     st.stop()
 
 engine = get_engine(DATABASE_URL)
+Session = sessionmaker(bind=engine)
+
+def get_theme():
+    try:
+        session = Session()
+        conf = session.query(AppConfig).filter_by(key="ui_theme").first()
+        session.close()
+        return conf.value if conf else "Light Mode"
+    except: return "Light Mode"
+
+apply_theme(get_theme())
+
+st.title("⚙️ EA Strategy Manager")
 
 def load_eas():
     with engine.connect() as conn:

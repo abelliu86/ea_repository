@@ -38,11 +38,16 @@ If you see `ERROR: Could not find a version that satisfies the requirement MetaT
 1.  **Install Python** (if not already).
 2.  **Install Requirements**: `pip install -r requirements.txt`
 3.  **Configure `.env`**: Same as above (copy the same file).
-4.  **Run Dashboard**:
-    ```bash
-    ```
-    streamlit run analysis/1_Dashboard.py
-    ```
+4. ## 5. (Optional) Setup Aliases
+You can now manage account aliases directly from the Dashboard.
+1. Go to **Config** page.
+2. Use the **Account Aliases** section to map Account IDs to friendly names.
+3. These are stored in the database (`account_aliases` table) and persist across restarts.
+
+## 6. Run the Dashboard
+```powershell
+python -m streamlit run analysis/1_Dashboard.py
+```
 
 ## 🔄 Updating to V3 (Composite Keys & EAs)
 **WARNING**: This update changes the Primary Key logic of the `eas` table.
@@ -66,3 +71,16 @@ You can now manage MT5 paths from the Dashboard (**Config Page**).
 2.  Add/Remove paths.
 3.  Click Save.
 4.  The Collector on VPS will automatically pick up the changes in its next cycle (every 60s). **No restart required!**
+
+## 🌐 Public Access (Cloudflare Tunnel)
+To expose the dashboard securely without opening ports:
+
+1.  **Install `cloudflared`** on VPS:
+    *   Windows: `winget install --id Cloudflare.cloudflared`
+    *   Linux: `curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb && sudo dpkg -i cloudflared.deb`
+2.  **Login**: `cloudflared tunnel login`
+3.  **Create/Configure**:
+    *   `cloudflared tunnel create ea-dashboard`
+    *   Create `config.yml` (see `cloudflared_config.yml` in repo).
+    *   Route DNS: `cloudflared tunnel route dns <UUID> dashboard.fortis-cm.com`
+4.  **Run**: `cloudflared tunnel run --config config.yml ea-dashboard`

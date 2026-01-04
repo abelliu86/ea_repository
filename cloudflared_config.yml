@@ -1,0 +1,7 @@
+tunnel: fa5ad980-980c-431a-b521-26f472adc9fd
+credentials-file: C:\Users\admin\.cloudflared\fa5ad980-980c-431a-b521-26f472adc9fd.json
+
+ingress:
+  - hostname: dashboard.fortis-cm.com
+    service: http://localhost:8501
+  - service: http_status:404

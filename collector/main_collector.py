@@ -11,7 +11,7 @@ from sqlalchemy import select
 # Add parent directory to path so we can import shared
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from shared.db_models import Base, EA, Trade, AppConfig, get_engine, create_tables
+from shared.db_models import Base, EA, Trade, AppConfig, AccountSnapshot, OpenPosition, get_engine, create_tables
 from collector.config_vps import DATABASE_URL, MT5_PATHS as ENV_MT5_PATHS, LOG_LEVEL
 
 # Setup Logging
@@ -144,6 +144,68 @@ def sync_trades(session, account_id):
         logging.error(f"Error in sync loop: {e}")
         session.rollback()
 
+def sync_account_snapshot(session, account_id):
+    """Capture Equity, Balance, Margin (TimeSeries)"""
+    try:
+        info = mt5.account_info()
+        if not info:
+            return
+
+        snapshot = AccountSnapshot(
+            account_id=account_id,
+            timestamp=datetime.now(timezone.utc),
+            balance=info.balance,
+            equity=info.equity,
+            margin=info.margin,
+            free_margin=info.margin_free,
+            margin_level=info.margin_level,
+            open_pnl=info.profit
+        )
+        session.add(snapshot)
+        session.commit()
+    except Exception as e:
+        logging.error(f"Error snapshotting account {account_id}: {e}")
+        session.rollback()
+
+def sync_open_positions(session, account_id):
+    """Sync Open Positions (Full Replace for Current State)"""
+    try:
+        positions = mt5.positions_get()
+        if positions is None: 
+            return
+
+        # 1. Clear existing open positions for this account
+        session.query(OpenPosition).filter_by(account_id=account_id).delete()
+        
+        # 2. Insert current
+        for pos in positions:
+            type_str = "BUY" if pos.type == mt5.POSITION_TYPE_BUY else "SELL"
+            
+            db_pos = OpenPosition(
+                ticket=pos.ticket,
+                account_id=account_id,
+                symbol=pos.symbol,
+                magic_number=pos.magic,
+                type=type_str,
+                volume=pos.volume,
+                open_price=pos.price_open,
+                current_price=pos.price_current,
+                sl=pos.sl,
+                tp=pos.tp,
+                profit=pos.profit,
+                swap=pos.swap,
+                comment=pos.comment
+            )
+            session.add(db_pos)
+        
+        session.commit()
+        if len(positions) > 0:
+            logging.info(f"Synced {len(positions)} open positions.")
+            
+    except Exception as e:
+        logging.error(f"Error syncing positions for {account_id}: {e}")
+        session.rollback()
+
 def get_config_paths(session):
     """Fetch MT5 paths from DB, fallback to ENV"""
     try:
@@ -189,6 +251,8 @@ def main():
                             account_id = int(account_info.login)
                             logging.info(f"Targeting Account ID: {account_id}")
                             sync_trades(session, account_id)
+                            sync_account_snapshot(session, account_id)
+                            sync_open_positions(session, account_id)
                         else:
                             logging.error("Failed to get account info")
                         

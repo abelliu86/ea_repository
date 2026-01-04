@@ -41,6 +41,49 @@ class Trade(Base):
     swap = Column(Float)
     comment = Column(String)
 
+class AccountSnapshot(Base):
+    """TimeSeries data for Account Health (Equity, Margin, etc.)"""
+    __tablename__ = 'account_snapshots'
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    account_id = Column(BigInteger, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    
+    balance = Column(Float)
+    equity = Column(Float)
+    margin = Column(Float)
+    free_margin = Column(Float)
+    margin_level = Column(Float)
+    open_pnl = Column(Float)
+    
+    # Flexible field for future metrics (stored as JSON string)
+    extra_data = Column(String, nullable=True)
+
+class AccountAlias(Base):
+    __tablename__ = 'account_aliases'
+    account_id = Column(String, primary_key=True)
+    alias = Column(String)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class OpenPosition(Base):
+    """Live Views of currently open trades"""
+    __tablename__ = 'open_positions'
+
+    ticket = Column(BigInteger, primary_key=True)
+    account_id = Column(BigInteger, index=True)
+    symbol = Column(String)
+    magic_number = Column(BigInteger)
+    type = Column(String) # "BUY", "SELL"
+    volume = Column(Float)
+    open_price = Column(Float)
+    current_price = Column(Float)
+    sl = Column(Float)
+    tp = Column(Float)
+    profit = Column(Float)
+    swap = Column(Float)
+    comment = Column(String)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 def get_engine(db_url: str):
     return create_engine(db_url)
 
